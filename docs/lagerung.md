@@ -53,4 +53,12 @@ Both stop automatically after the grace timer expires.
 ---
 
 ## 🧩 Typical Log Example
+[2025-10-31T11:37:24Z] STORAGE: storage:start target=50% power=-500W
+[2025-10-31T11:39:09Z] STORAGE: storage:grace-start soc=50% target=50% holdPower=-250W
+[2025-10-31T11:42:37Z] STORAGE: storage:done target=50% grace-finished
 
+
+## 🧠 Notes
+- Storage mode can be used even when Winter mode is OFF.
+- During Storage mode, Winter controller is fully paused.
+- All parameters can be tuned (`FAST_POWER_W`, `HOLD_POWER_W`, `graceDurationMs`) inside the Function nodes.
