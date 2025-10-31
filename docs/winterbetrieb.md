@@ -39,4 +39,11 @@ After Storage mode (including grace phase) ends, Winter mode resumes automatical
 ---
 
 ## 🧾 Example Log
+2025-10-31T11:36:19Z] MODE: Auto -> Passive (cause=cmd:Passive)
+[2025-10-31T11:42:37Z] WINTER → AUTO (Einspeisung=-310W)
 
+
+## 🧠 Notes
+- The logic is tolerant against brief power spikes.
+- All transitions and causes are logged to `marstek.log`.
+- The flow works without any cloud dependency.
