@@ -1,0 +1,193 @@
+Voraussetzungen
+
+Bevor du die Flow-Datei importierst, brauchst du:
+
+MQTT-Broker
+
+Ein laufender MQTT Broker (z. B. Mosquitto).
+
+Erreichbar als mqtt.local:1883, oder du passt im Flow unter dem Knoten HomeAssistant-MQTT den Host/Port an.
+
+Node-RED muss Publish/Subscribe dürfen (Benutzer/Passwort ggf. im Broker-Node eintragen).
+
+InfluxDB (optional, aber im Flow verwendet)
+
+InfluxDB 1.x erreichbar unter http://influxdb:8086.
+
+Datenbank nodered muss existieren (ansonsten anlegen oder im Flow ändern).
+
+Falls du keine InfluxDB willst: lösche die Knoten
+
+VenusE stat/# (nur ausgewählte Felder) (mqtt in),
+
+→ Influx: Feldnamen direkt aus Topics (function),
+
+NodeRed DB - Energiespeicher (influxdb out),
+damit Node-RED nicht meckert.
+
+Marstek Venus E
+
+Deine Venus E muss im gleichen Netz erreichbar sein.
+
+Die IP der Venus E musst du in den udp out-Node UDP → VenusE eintragen.
+
+Im Flow steht aktuell ein Platzhalter: 192.168.100.50.
+
+Stell dort die echte IP deiner Venus E ein.
+
+Port bleibt 30000/udp.
+
+Shelly 3EM
+
+Der Shelly muss per MQTT seine Messwerte (Thema .../status/em:0) publizieren.
+
+Der Flow hört auf shellypro3em-sab7-netz/status/em:0.
+
+Wenn dein Topic anders heißt, musst du den MQTT-In Node Shelly: Netz Total Active Power anpassen.
+
+Node-RED braucht Schreibrechte fürs Log
+
+Der Flow schreibt Logs nach /data/logs/marstek.log.
+
+Stelle sicher, dass dieser Pfad auf deinem System existiert und Node-RED darin schreiben darf.
+
+Docker-Variante: Du kannst z. B. ein Volume mounten wie
+-v ./logs:/data/logs
+
+Home Assistant Add-on: passe den Pfad in den drei file-Nodes an, wenn /data/logs/... bei dir nicht existiert.
+
+Home Assistant (MQTT Discovery)
+
+Discovery muss aktiv sein (homeassistant: MQTT Discovery eingeschaltet).
+
+Dann erstellt der Flow automatisch:
+
+Sensoren (SoC, Netzleistung, Temperaturen, …)
+
+Select für Betriebsmodus
+
+Switch Winterbetrieb
+
+Switch Lagerungsbetrieb
+
+Du musst nichts manuell in HA konfigurieren, aber:
+
+Einmalig muss der Inject-Node Publish MQTT Discovery (once) gedrückt werden (oder der Flow frisch gestartet werden), damit die Discovery-Topics rausgehen.
+
+Nach dem Import in Node-RED: Schritt-für-Schritt
+
+Flows importieren
+
+In Node-RED: Menu → Import → JSON einfügen → Deploy.
+
+MQTT Broker konfigurieren
+
+Doppelklick auf den MQTT-Broker Node HomeAssistant-MQTT.
+
+Hostname/IP anpassen (mqtt.local → deine Broker-IP).
+
+Falls der Broker Benutzer+Passwort braucht, hier eintragen.
+
+Deploy.
+
+Venus E IP konfigurieren
+
+Doppelklick auf UDP → VenusE.
+
+addr auf die lokale IP deiner Venus E setzen.
+
+Deploy.
+
+Log-Pfad prüfen
+
+Prüfen, ob /data/logs/ existiert.
+
+Wenn nicht: Ordner anlegen oder in folgenden Nodes den Pfad ändern:
+
+marstek.log (file)
+
+read marstek.log (file in)
+
+overwrite → marstek.log (FIFO) (file)
+
+Deploy, sonst bekommst du File-Write-Fehler.
+
+InfluxDB prüfen (optional)
+
+Doppelklick auf die InfluxDB-Konfiguration (NodeRed DB).
+
+Wenn du nicht influxdb:8086 / DB nodered hast, passe Host, DB-Namen etc. an.
+
+Oder lösche die drei Telemetrie/Influx-Knoten wie oben beschrieben und verdrahte nichts neu (sie hängen eh nur als Nebenpfad, Rest läuft auch ohne Logging).
+
+Shelly MQTT Topic prüfen
+
+Öffne den Node Shelly: Netz Total Active Power.
+
+Guck, ob dein Shelly wirklich genau auf shellypro3em-sab7-netz/status/em:0 published.
+
+Falls nicht: Topic anpassen.
+
+Discovery schicken
+
+Klick auf den Inject-Node Publish MQTT Discovery (once) (der mit dem kleinen Button an der linken Seite).
+
+Ergebnis: Home Assistant sollte sofort neue Entities sehen:
+
+Sensoren unter Gerät Marstek VenusE 3.0
+
+Schalter Winterbetrieb
+
+Schalter Lagerungsbetrieb
+
+Select Betriebsmodus
+
+Winterbetrieb testen
+
+In Home Assistant den neuen Switch Winterbetrieb togglen.
+
+Im Flow sollte der Node WINTER Controller grün/grau werden und im Topic marstek/winter/stat/winter_mode ON/OFF publizieren.
+
+Lagerungsbetrieb testen (Speicher auf Ziel-SoC laden & passiv parken)
+
+In Home Assistant den Switch Lagerungsbetrieb einschalten.
+
+Flow setzt:
+
+storage_active = true
+
+Modus Manual am Speicher mit z. B. -500 W
+
+Ziel-SoC = 50 %
+
+Danach Grace/Haltephase mit -250 W für ein paar Minuten, dann Passive, Schalter wieder OFF.
+
+Das wird alles per MQTT dokumentiert in marstek/venus_e/stat/storage_info und im Logfile marstek.log.
+
+Check Watchdog / Safety
+
+Der Node Watchdog: Passive prüfen ... versucht, einen „hängenden“ Passive-Modus zu reparieren (bekannter Venus-E-Glitch).
+
+Er schaltet kurz Manual0 und dann wieder Passive.
+
+Wenn du das Verhalten nicht willst, kannst du den Node einfach auf „disabled“ schalten.
+
+Typische Stellen zum Anpassen im Code
+
+Kurzfassung für Leute, die dein Repo klonen:
+
+UDP → VenusE
+addr: IP des Venus E Geräts
+
+MQTT Broker Node HomeAssistant-MQTT
+broker: Adresse des eigenen Brokers
+clientid: kann beliebig geändert werden
+
+File Nodes
+filename: Pfad anpassen, wenn /data/logs/marstek.log bei dir anders liegen soll
+
+Shelly MQTT Topic
+Node Shelly: Netz Total Active Power → topic
+
+InfluxDB
+Node NodeRed DB bzw. Konfiguration influxdb → Host/DB-Namen anpassen oder diese Logging-Kette löschen
